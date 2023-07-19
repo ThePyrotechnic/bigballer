@@ -1,0 +1,10 @@
+/.vscode
+/app/keys
+/sd
+__pycache__
+.parcel-cache
+dist
+node_modules
+
+
+.env.local

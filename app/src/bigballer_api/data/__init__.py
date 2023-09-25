@@ -37,7 +37,7 @@ async def connect_db():
     global _cluster
 
     _cluster = await Cluster.connect(
-        settings().db_url,
+        str(settings().db_url),
         ClusterOptions(
             PasswordAuthenticator(settings().db_username, settings().db_password)
         ),

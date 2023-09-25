@@ -15,7 +15,7 @@ bigballer web - collect items
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class Item(BaseModel):
@@ -41,9 +41,9 @@ class TradeRequest(BaseModel):
     sender_items: set
     recipient_items: set
 
-    @validator("sender_items", allow_reuse=True)
-    @validator("recipient_items")
-    def max_items_length(v):
+    @field_validator("sender_items", "recipient_items")
+    @classmethod
+    def max_items_length(cls, v: set) -> set:
         max_len = 10
         if len(v) > max_len:
             raise ValueError(f"Must not contain more than {max_len} items")

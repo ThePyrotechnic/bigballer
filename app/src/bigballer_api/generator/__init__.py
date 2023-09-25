@@ -13,9 +13,12 @@ bigballer web - collect items
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 import math
+from pathlib import Path
 import random
 
+from bigballer_api.settings import settings
 from bigballer_api.generator._words import modifiers, names, appraisals
+from bigballer_api.generator import _blender_generator
 
 
 rarity_table = {
@@ -29,19 +32,21 @@ lowest_rarity_name = "common"
 
 max_stats_roll = 0.0000013  # ~489,707
 
-
-height_range_cm = (15, 60)  # 6 inches ~ 2 feet
+height_range_cm = (17, 60)  # 6 inches ~ 2 feet
 extra_height_minimum = (
     height_range_cm[1] - height_range_cm[1] * 0.01
-)  # 1% of max height
+)  # 99% of max height must be reached to trigger extra height
 extra_height_range_cm = (120, 240)  # 4 ~ 8 feet
 
 weight_range_grams = (450, 1800)  # 1 ~ 4 pounds
 extra_weight_range_grams = (3600, 7200)  # 8 ~ 15 pounds
-weight_variance = (-0.075, 0.075)  # up to 15% weight variance
+weight_variance = (0.925, 1.075)  # +/-7.5% weight variance range
+
+SIGNED_INT32_MAX = 2**31 - 1
+SIGNED_INT32_MIN = -(2**31)
 
 
-def generate():
+def generate(unique_key: str):
     modifier = random.choice(modifiers)
     name = random.choice(names)
     appraisal = random.choice(appraisals)
@@ -49,18 +54,20 @@ def generate():
     roll = random.random()
 
     height_roll = random.random()
-    height_cm = height_range_cm[0] + height_roll * height_range_cm[1]
+    height_cm = height_range_cm[0] + height_roll * (
+        height_range_cm[1] - height_range_cm[0]
+    )
     if height_cm >= extra_height_minimum:
-        height_cm = extra_height_range_cm[0] + height_roll * extra_height_range_cm[1]
-        weight_grams = extra_weight_range_grams[
-            0
-        ] + height_roll * extra_weight_range_grams[1] * random.uniform(
-            weight_variance[0], weight_variance[1]
+        height_cm = extra_height_range_cm[0] + height_roll * (
+            extra_height_range_cm[1] - extra_height_range_cm[0]
         )
+        weight_grams = extra_weight_range_grams[0] + height_roll * (
+            extra_weight_range_grams[1] - extra_weight_range_grams[0]
+        ) * random.uniform(weight_variance[0], weight_variance[1])
     else:
-        weight_grams = weight_range_grams[0] + height_roll * weight_range_grams[
-            1
-        ] * random.uniform(weight_variance[0], weight_variance[1])
+        weight_grams = weight_range_grams[0] + height_roll * (
+            weight_range_grams[1] - weight_range_grams[0]
+        ) * random.uniform(weight_variance[0], weight_variance[1])
 
     next_rarity_value = max_stats_roll
     rarity_name = lowest_rarity_name
@@ -95,6 +102,35 @@ def generate():
             99, base_stats[stat_name] + skill_points_to_distribute
         )
 
+    item_count = 0
+    while random.random() > 0.5:
+        item_count += 1
+
+    eye_count = 0
+    while random.random() > 0.5:
+        eye_count += 1
+
+    if item_count > SIGNED_INT32_MAX:
+        item_count = SIGNED_INT32_MAX
+
+    if eye_count > SIGNED_INT32_MAX:
+        eye_count = SIGNED_INT32_MAX
+
+    baller_path = _blender_generator.generate_baller(
+        export_path=Path(
+            settings().base_baller_output_path, f"baller_{unique_key}.glb"
+        ),
+        seed=random.randrange(
+            SIGNED_INT32_MIN, SIGNED_INT32_MAX
+        ),  # Blender-defined min/max
+        height=height_cm / 100,
+        weight=weight_grams,
+        body_noise=random.choice([True, False]),
+        headwear=random.choice([True, False]),
+        item_count=item_count,
+        eye_count=eye_count,
+    )
+
     return {
         "modifier": modifier,
         "name": name,
@@ -106,4 +142,5 @@ def generate():
         "height_roll": height_roll,
         "height": height_cm,
         "weight": weight_grams,
+        "baller_path": baller_path,
     }

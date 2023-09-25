@@ -15,17 +15,15 @@ bigballer web - collect items
 import time
 from urllib.parse import urlencode
 from uuid import uuid4
-from typing import Literal
 from typing_extensions import Annotated
 
 from acouchbase.transactions import AttemptContext
 from couchbase.exceptions import (
-    DocumentExistsException,
     DocumentNotFoundException,
-    TransactionFailed,
 )
 from couchbase.options import TransactionQueryOptions
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey, RSAPrivateKey
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Security, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.security import APIKeyCookie
@@ -39,7 +37,6 @@ from bigballer_api.models import (
     TradeQuery,
     TradeRequest,
     TradeStatusUpdate,
-    User,
 )
 from bigballer_api.settings import settings
 
@@ -54,12 +51,14 @@ app.add_event_handler("shutdown", close_db)
 
 
 with open(settings().public_key_filepath, "rb") as public_key_file:
-    PUBLIC_KEY = serialization.load_pem_public_key(public_key_file.read())
+    PUBLIC_KEY: RSAPublicKey = serialization.load_pem_public_key(
+        public_key_file.read()
+    )  # pyright: ignore [reportGeneralTypeIssues]
 
 with open(settings().private_key_filepath, "rb") as private_key_file:
-    PRIVATE_KEY = serialization.load_pem_private_key(
+    PRIVATE_KEY: RSAPrivateKey = serialization.load_pem_private_key(
         private_key_file.read(), password=None
-    )
+    )  # pyright: ignore [ reportGeneralTypeIssues]
 
 
 async def check_api_key(api_key: str = Security(api_key_cookie)) -> str:
@@ -140,11 +139,11 @@ async def post_roll(pack: bool = False, api_key=Depends(check_api_key)):
                 )
                 return
 
-            creation_time = round(time.time() * 1000)
-            roll = roller.generate()
-            roll["owner"] = api_key["claimed_id"]
-            roll["creation_time"]: creation_time
             item_id = str(uuid4())
+            creation_time = round(time.time() * 1000)
+            roll = roller.generate(item_id)
+            roll["owner"] = api_key["claimed_id"]
+            roll["creation_time"] = creation_time
 
             await context.insert(
                 col_users,
@@ -165,7 +164,7 @@ async def post_roll(pack: bool = False, api_key=Depends(check_api_key)):
             await context.insert(col_items, item_id, roll)
             rolls = {item_id: roll}
         else:
-            user: User = user_query.content_as[dict]
+            user = user_query.content_as[dict]
 
             if pack:
                 num_rolls = settings().rolls_per_pack
@@ -179,13 +178,12 @@ async def post_roll(pack: bool = False, api_key=Depends(check_api_key)):
                     status.HTTP_400_BAD_REQUEST, detail="Insufficient pinecones"
                 )
                 return
-
             creation_time = round(time.time() * 1000)  # Unix milliseconds
             for _ in range(num_rolls):
-                roll = roller.generate()
-                roll["owner"] = api_key["claimed_id"]
-                roll["creation_time"]: creation_time
                 item_id = str(uuid4())
+                roll = roller.generate(item_id)
+                roll["owner"] = api_key["claimed_id"]
+                roll["creation_time"] = creation_time
 
                 rolls[item_id] = roll
 
@@ -197,10 +195,10 @@ async def post_roll(pack: bool = False, api_key=Depends(check_api_key)):
             for key, roll in rolls.items():
                 await context.insert(col_items, key, roll)
 
-    await cluster().transactions.run(tx)
+    await cluster().transactions.run(tx)  # pyright: ignore [reportGeneralTypeIssues]
 
     if exception is not None:
-        raise exception
+        raise exception  # pyright: ignore [reportGeneralTypeIssues]
 
     return JSONResponse(rolls)
 
@@ -271,7 +269,7 @@ async def post_trade_status(
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
         async def tx(context: AttemptContext):
-            await context.query(
+            context.query(
                 "UPDATE bigballer.bigballer.items USE KEYS $trade_items UNSET trade_id",
                 TransactionQueryOptions(
                     named_parameters={
@@ -289,19 +287,21 @@ async def post_trade_status(
 
             if len(trade["sender_items"]) > 0:
                 sender_set = set(trade["sender_items"])
-                sender["items"] = [i for i in sender["items"] if not i in sender_set]
+                sender["items"] = [i for i in sender["items"] if i not in sender_set]
 
                 recipient["items"].extend(trade["sender_items"])
 
             if len(trade["recipient_items"]) > 0:
                 recipient_set = set(trade["recipient_items"])
                 recipient["items"] = [
-                    i for i in recipient["items"] if not i in recipient_set
+                    i for i in recipient["items"] if i not in recipient_set
                 ]
 
                 sender["items"].extend(trade["sender_items"])
 
-        await cluster().transactions.run(tx)
+        await cluster().transactions.run(
+            tx  # pyright: ignore [reportGeneralTypeIssues]
+        )
     else:
         if (
             status_update.new_status == "reject"
@@ -316,7 +316,7 @@ async def post_trade_status(
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
         async def tx(context: AttemptContext):
-            await context.query(
+            context.query(
                 "UPDATE bigballer.bigballer.items USE KEYS $trade_items UNSET trade_id",
                 TransactionQueryOptions(
                     named_parameters={
@@ -332,7 +332,7 @@ async def post_trade_status(
             trade_query = await context.get(col_trades, trade_id)
             await context.replace(trade_query, trade)
 
-    await cluster().transactions.run(tx)
+    await cluster().transactions.run(tx)  # pyright: ignore [reportGeneralTypeIssues]
 
 
 @app.post("/trade", tags=["trades"])
@@ -395,7 +395,7 @@ async def post_new_trade(trade_request: TradeRequest, api_key=Depends(check_api_
     }
 
     async def tx(context: AttemptContext):
-        await context.query(
+        context.query(
             "UPDATE bigballer.bigballer.items USE KEYS $trade_items SET trade_id = $trade_id",
             TransactionQueryOptions(
                 named_parameters={
@@ -408,7 +408,7 @@ async def post_new_trade(trade_request: TradeRequest, api_key=Depends(check_api_
         # Add trade to both users
         for user_id in [api_key["claimed_id"], trade_request.recipient_id]:
             user_query = await context.get(col_users, user_id)
-            user: User = user_query.content_as[dict]
+            user = user_query.content_as[dict]
 
             try:
                 user["trades"].append(trade_id)
@@ -419,7 +419,7 @@ async def post_new_trade(trade_request: TradeRequest, api_key=Depends(check_api_
 
         await context.insert(col_trades, trade_id, trade)
 
-    await cluster().transactions.run(tx)
+    await cluster().transactions.run(tx)  # pyright: ignore [reportGeneralTypeIssues]
 
 
 @app.post("/pinecones", tags=["users"])
@@ -447,7 +447,8 @@ async def post_pinecones(api_key=Depends(check_api_key)):
         time_delta = current_time - user["last_pinecone_time"]
         if time_delta > settings().pinecone_base_rate:
             # Number of elapsed periods since last update
-            # ex: if period is 5 minutes and 11 minutes have elapsed, then periods_delta == 2
+            #  ex: if period is 5 minutes and 11 minutes have elapsed,
+            #  then periods_delta == 2
             periods_delta = time_delta // settings().pinecone_base_rate
 
             new_pinecones = periods_delta * settings().pinecone_base_amount
@@ -457,7 +458,7 @@ async def post_pinecones(api_key=Depends(check_api_key)):
 
             await context.replace(user_query, user)
 
-    await cluster().transactions.run(tx)
+    await cluster().transactions.run(tx)  # pyright: ignore [reportGeneralTypeIssues]
 
     return JSONResponse(
         {"new_pinecones": new_pinecones, "total_pinecones": total_pinecones}
@@ -466,7 +467,7 @@ async def post_pinecones(api_key=Depends(check_api_key)):
 
 @app.get("/users", tags=["users"])
 async def get_users(
-    like: str = Query(regex=r"^[^\% \\]{3,64}$"), api_key=Depends(check_api_key)
+    like: str = Query(regex=r"^[^\% \\]{3,64}$"), _=Depends(check_api_key)
 ):
     like = like + "%"
 
@@ -482,7 +483,8 @@ async def get_users(
 
 
 # Partially adapted from: https://github.com/xamey/steam-openid-fastapi/
-# Also see: https://stackoverflow.com/questions/53573820/steam-openid-signature-validation
+#  Also see:
+#  https://stackoverflow.com/questions/53573820/steam-openid-signature-validation
 @app.get("/login", tags=["login"])
 async def get_login():
     steam_params = urlencode(
@@ -517,13 +519,13 @@ async def get_login_response(request: Request):
         "openid.signed": request.query_params["openid.signed"],
         "openid.sig": request.query_params["openid.sig"],
     }
-    res = requests.get(settings().oid_endpoint, params=validation_params)
+    res = requests.get(str(settings().oid_endpoint), params=validation_params)
 
     try:
         res.raise_for_status()
         if not res.text == "ns:http://specs.openid.net/auth/2.0\nis_valid:true\n":
             raise ValueError
-    except (requests.HTTPError, ValueError) as e:
+    except (requests.HTTPError, ValueError):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
     token = jwt.encode(
@@ -533,7 +535,7 @@ async def get_login_response(request: Request):
     )
 
     response = RedirectResponse(
-        url=settings().website_url, status_code=status.HTTP_303_SEE_OTHER
+        url=str(settings().website_url), status_code=status.HTTP_303_SEE_OTHER
     )
 
     response.set_cookie(

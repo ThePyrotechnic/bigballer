@@ -11,3 +11,20 @@ bigballer api - collect items
     GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+
+## Development
+### Database
+1. `docker run -t --name db -p 8091-8096:8091-8096 -p 11210-11211:11210-11211 couchbase/server:community-7.2.0`
+1. (`docker start/stop db` for future runs)
+### App Server
+1. `cd app`
+1. `pip install -e .[dev]`
+1. `cd ..`
+1. `$BIGBALLER_ENV_FILE=".env.local`
+1. `make app`
+### Web Server
+1. `cd web`
+1. `npm install .`
+1. `cd ..`
+1. `make web`

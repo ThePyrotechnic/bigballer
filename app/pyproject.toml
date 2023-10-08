@@ -17,6 +17,7 @@ classifiers = [
 ]
 
 dependencies = [
+    "boto3~=1.28"
     "couchbase~=4.1",
     "fastapi[all]~=0.98",
     "pyjwt[crypto]~=2.7",

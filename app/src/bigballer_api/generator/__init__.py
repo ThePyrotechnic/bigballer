@@ -16,6 +16,8 @@ import math
 from pathlib import Path
 import random
 
+import boto3
+
 from bigballer_api.settings import settings
 from bigballer_api.generator._words import modifiers, names, appraisals
 from bigballer_api.generator import _blender_generator
@@ -30,7 +32,7 @@ rarity_table = {
 }
 lowest_rarity_name = "common"
 
-max_stats_roll = 0.0000013  # ~489,707
+max_stats_roll = 0.0000013  # would be ~489,707 stat points
 
 height_range_cm = (17, 60)  # 6 inches ~ 2 feet
 extra_height_minimum = (
@@ -46,18 +48,23 @@ SIGNED_INT32_MAX = 2**31 - 1
 SIGNED_INT32_MIN = -(2**31)
 
 
+if settings().use_s3:
+    s3 = boto3.Session(profile_name=settings().aws_profile).client("s3")
+
+
 def generate(unique_key: str):
     modifier = random.choice(modifiers)
     name = random.choice(names)
     appraisal = random.choice(appraisals)
 
-    roll = random.random()
+    roll = random.random()  # lower = better
 
     height_roll = random.random()
     height_cm = height_range_cm[0] + height_roll * (
         height_range_cm[1] - height_range_cm[0]
-    )
+    )  # value should be uniform random between height_range_cm values
     if height_cm >= extra_height_minimum:
+        # if roll is >= 99% of max regular height, roll extra height + weight
         height_cm = extra_height_range_cm[0] + height_roll * (
             extra_height_range_cm[1] - extra_height_range_cm[0]
         )
@@ -69,6 +76,7 @@ def generate(unique_key: str):
             weight_range_grams[1] - weight_range_grams[0]
         ) * random.uniform(weight_variance[0], weight_variance[1])
 
+    # find the correct rarity name to match the roll
     next_rarity_value = max_stats_roll
     rarity_name = lowest_rarity_name
     for name_, req_value in rarity_table.items():
@@ -78,8 +86,10 @@ def generate(unique_key: str):
         else:
             next_rarity_value = req_value
 
+    # roll can be lower than max_rarity value (1.3 out of 1 million rolls)
     stats_roll = random.uniform(next_rarity_value, roll)
 
+    #  approaches infinity at 0, reaches 0 at 1
     points = math.tan((1 - stats_roll) * (math.pi / 2))
 
     skill_points_to_distribute = round(points)
@@ -89,13 +99,19 @@ def generate(unique_key: str):
 
     base_stats = {}
     for stat in stat_names:
+        # max percentage ranges from an equal share
+        # to 75% of remaining stat points
         max_pct_to_take = random.uniform(1 / len(stat_names), 0.75)
+
+        # roll for actual percentage to take and calculate points
         points_to_take = round(
             random.uniform(0, max_pct_to_take) * skill_points_to_distribute
         )
+        # clamp from 1 to 99
         base_stats[stat] = min(99, max(1, points_to_take))
         skill_points_to_distribute -= points_to_take
 
+    # distrbute any leftover points to a random skill
     if skill_points_to_distribute > 0:
         stat_name = random.choice(stat_names)
         base_stats[stat_name] = min(
@@ -106,20 +122,26 @@ def generate(unique_key: str):
     while random.random() > 0.5:
         item_count += 1
 
-    eye_count = 0
+    if item_count > SIGNED_INT32_MAX:
+        item_count = SIGNED_INT32_MAX
+
+    eye_count = 2
     while random.random() > 0.5:
         eye_count += 1
 
-    if item_count > SIGNED_INT32_MAX:
-        item_count = SIGNED_INT32_MAX
+    # 1/10,000 chance for 0 or 1 eyes
+    # probability of 10+ eyes is < 1/10,000
+    # so skip this in case of 10+ eyes
+    if eye_count < 10 and random.random() <= 0.0001:
+        eye_count = random.choice((0, 1))
 
     if eye_count > SIGNED_INT32_MAX:
         eye_count = SIGNED_INT32_MAX
 
-    baller_path = _blender_generator.generate_baller(
-        export_path=Path(
-            settings().base_baller_output_path, f"baller_{unique_key}.glb"
-        ),
+    baller_filename = f"baller_{unique_key}.glb"
+    export_path = Path(settings().base_baller_output_path, baller_filename)
+    _blender_generator.generate_baller(
+        export_path=export_path,
         seed=random.randrange(
             SIGNED_INT32_MIN, SIGNED_INT32_MAX
         ),  # Blender-defined min/max
@@ -130,6 +152,18 @@ def generate(unique_key: str):
         item_count=item_count,
         eye_count=eye_count,
     )
+
+    if settings().use_s3:
+        s3_key = Path(settings().s3_bucket_prefix, baller_filename).as_posix()
+        s3.upload_file(  # pyright: ignore [reportUnboundVariable]
+            export_path.as_posix(),
+            settings().s3_bucket_name,
+            s3_key
+        )
+
+        export_path_str = f"{settings().cdn_prefix}/{baller_filename}"
+    else:
+        export_path_str = export_path.as_posix()
 
     return {
         "modifier": modifier,
@@ -142,5 +176,5 @@ def generate(unique_key: str):
         "height_roll": height_roll,
         "height": height_cm,
         "weight": weight_grams,
-        "baller_path": baller_path,
+        "export_path": export_path_str,
     }

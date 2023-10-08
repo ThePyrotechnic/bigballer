@@ -16,49 +16,49 @@ bigballer web - collect items
 <html lang="en">
 
 <head>
-    <meta charset="utf-8" />
-    <title>My First Parcel App</title>
-    <link rel="stylesheet" href="css/index.css" />
-    <script src="js/index.js"></script>
+  <meta charset="utf-8" />
+  <title>My First Parcel App</title>
+  <link rel="stylesheet" href="css/index.css" />
+  <script type="module" src="js/index.js"></script>
 </head>
 
 <body>
-    <h1>Hello, World!</h1>
-    <button id="btn-login" onclick="login()">Log in</button>
-    <button id="btn-logout" onclick="logout()">Log out</button>
-    <button id="btn-roll" onclick="postRoll()">Roll</button>
-    <button id="btn-roll-group" onclick="postRoll(true)">Roll Pack</button>
-    <p id="p-pinecones"></p>
-    <p id="p-roll-result"></p>
-    <input id="i-user-search" placeholder="Username Search">
-    <button id="btn-user-search" onclick="getUsers()">Username Search</button>
-    <p id="p-user-search-result"></p>
-    <input id="i-user-id-items" placeholder="User ID">
-    <button id="btn-items" onclick="getItems()">Get Items</button>
-    <p id="p-items-result"></p>
-    <input id="i-trade-own-items" placeholder="Your items">
-    <input id="i-trade-recipient" placeholder="Recipient ID">
-    <input id="i-trade-their-items" placeholder="Their items">
-    <button id="btn-post-trade" onclick="postTrade()">Post Trade</button>
-    <p />
-    <button id="btn-my-trades" onclick="getMyTrades()">My Trades</button>
-    <select id="select-trade-status">
-        <option value="all">All</option>
-        <option value="sent">Sent</option>
-        <option value="completed">Completed</option>
-        <option value="cancelled">Cancelled</option>
-        <option value="rejected">Rejected</option>
-    </select>
-    <p id="p-trades-result"></p>
-    <input id="i-trade-id" placeholder="Trade ID">
-    <select id="select-update-trade-status">
-        <option value="accept">Accept</option>
-        <option value="reject">Reject</option>
-        <option value="cancel">Cancel</option>
-    </select>
-    <button id="btn-update-trade" onclick="updateTrade()">Update Trade</button>
-    <button id="btn-get-trade" onclick="getTrade()">Get Trade</button>
-    <p id="p-trade-details"></p>
+  <h1>Hello, World!</h1>
+  <button id="btn-login">Log in</button>
+  <button id="btn-logout">Log out</button>
+  <button id="btn-roll">Roll</button>
+  <button id="btn-roll-group">Roll Pack</button>
+  <p id="p-pinecones"></p>
+  <p id="p-roll-result"></p>
+  <input id="i-user-search" placeholder="Username Search">
+  <button id="btn-user-search">Username Search</button>
+  <p id="p-user-search-result"></p>
+  <input id="i-user-id-items" placeholder="User ID">
+  <button id="btn-items">Get Items</button>
+  <p id="p-items-result"></p>
+  <input id="i-trade-own-items" placeholder="Your items">
+  <input id="i-trade-recipient" placeholder="Recipient ID">
+  <input id="i-trade-their-items" placeholder="Their items">
+  <button id="btn-post-trade">Post Trade</button>
+  <p />
+  <button id="btn-my-trades">My Trades</button>
+  <select id="select-trade-status">
+    <option value="all">All</option>
+    <option value="sent">Sent</option>
+    <option value="completed">Completed</option>
+    <option value="cancelled">Cancelled</option>
+    <option value="rejected">Rejected</option>
+  </select>
+  <p id="p-trades-result"></p>
+  <input id="i-trade-id" placeholder="Trade ID">
+  <select id="select-update-trade-status">
+    <option value="accept">Accept</option>
+    <option value="reject">Reject</option>
+    <option value="cancel">Cancel</option>
+  </select>
+  <button id="btn-update-trade">Update Trade</button>
+  <button id="btn-get-trade">Get Trade</button>
+  <p id="p-trade-details"></p>
 
 </body>
 

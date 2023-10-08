@@ -25,6 +25,11 @@ def settings():
 
 
 class _Settings(BaseSettings):
+    aws_profile: str | None = None
+    use_s3: bool = False
+    s3_bucket_name: str = ""
+    s3_bucket_prefix: str = ""
+    cdn_prefix: str = ""
     base_baller_output_path: str
     baller_generation_script_filepath: str
     base_baller_blend_filepath: str

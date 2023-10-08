@@ -163,7 +163,7 @@ async def post_roll(pack: bool = False, api_key=Depends(check_api_key)):
             )
             await context.insert(col_items, item_id, roll)
             rolls = {item_id: roll}
-        else:
+        else:  # existing user
             user = user_query.content_as[dict]
 
             if pack:
@@ -532,6 +532,7 @@ async def get_login_response(request: Request):
         {"claimed_id": request.query_params["openid.claimed_id"]},
         key=PRIVATE_KEY,
         algorithm="RS256",
+        headers={"kid": "app_rsa_public.pem"}
     )
 
     response = RedirectResponse(

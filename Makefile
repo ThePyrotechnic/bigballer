@@ -1,4 +1,4 @@
-.PHONY: db web app
+.PHONY: db web app lambda
 
 web:
 	cd web && $(MAKE) run
@@ -8,3 +8,6 @@ app:
 
 db:
 	sudo docker start db
+
+clean:
+	-rm -r build/**

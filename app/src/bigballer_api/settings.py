@@ -26,33 +26,34 @@ def settings():
 
 class _Settings(BaseSettings):
     aws_profile: str | None = None
-    use_s3: bool = False
-    s3_bucket_name: str = ""
-    s3_bucket_prefix: str = ""
-    cdn_prefix: str = ""
-    base_baller_output_path: str
     baller_generation_script_filepath: str
     base_baller_blend_filepath: str
+    base_baller_output_path: str
     blender_binary_filepath: str
-    public_key_filepath: str
-    private_key_filepath: str
+    cdn_prefix: str = ""
+    db_password: str
+    db_url: AnyUrl
+    db_username: str
+    host: str = "0.0.0.0"
+    hot_reload: bool = False
     oid_endpoint: AnyHttpUrl = "https://steamcommunity.com/openid/login"  # pyright: ignore [reportGeneralTypeIssues] # noqa: E501
     oid_redirect: AnyHttpUrl = "http://localhost:1234/api/loginResponse"  # pyright: ignore [reportGeneralTypeIssues] # noqa: E501
+    pack_roll_cost: int = 4000
+    pinecone_base_amount: int = 2  # per base rate
+    pinecone_base_rate: int = 300000  # milliseconds
+    port: int = 8000
+    private_key_filepath: str
+    public_key_filepath: str
+    roll_cost: int = 1000
+    rolls_per_pack: int = 5
+    s3_bucket_name: str = ""
+    s3_bucket_prefix: str = ""
+    starting_pinecones: int = 4000
+    steam_api_key: str
+    use_s3: bool = False
     website_url: AnyHttpUrl = (
         "http://localhost:1234"  # pyright: ignore [reportGeneralTypeIssues]
     )
-    host: str = "0.0.0.0"
-    port: int = 8000
-    db_url: AnyUrl
-    db_username: str
-    db_password: str
-    steam_api_key: str
-    starting_pinecones: int = 4000
-    pinecone_base_amount: int = 2  # per base rate
-    pinecone_base_rate: int = 300000  # milliseconds
-    roll_cost: int = 1000
-    pack_roll_cost: int = 4000
-    rolls_per_pack: int = 5
 
     class Config:
         if os.environ.get("BIGBALLER_ENV_FILE"):

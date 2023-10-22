@@ -14,12 +14,19 @@ bigballer web - collect items
 """
 import uvicorn
 
-from bigballer_api import app
+# Leave this import in to explicitly "link" bigballer_api:app
+#   to this file in the import tree. Just in case
+from bigballer_api import app  # noqa: F401 # pyright: ignore
 from bigballer_api.settings import settings
 
 
 def main():
-    uvicorn.run(app, host=settings().host, port=settings().port)
+    uvicorn.run(
+            "bigballer_api:app",
+            host=settings().host,
+            port=settings().port,
+            reload=settings().hot_reload
+    )
 
 
 if __name__ == "__main__":

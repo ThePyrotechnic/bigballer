@@ -49,14 +49,14 @@ const initThree = async () => {
 
   scene.background = generatedCubeRenderTarget.texture;
 
-  basicMat = new THREE.MeshPhysicalMaterial({
+  metalMat = new THREE.MeshPhysicalMaterial({
     color: new THREE.Color(0.644, 0.003, 0.005),
-    metalness: 0,
+    metalness: 1,
     roughness: 0,
-    transmission: 1,
-    opacity: 0,
-    thickness: 0.2,
-    ior: 1.301,
+    transmission: 0,
+    opacity: 1,
+    // thickness: 0.2,
+    // ior: 1.301,
     envMap: generatedCubeRenderTarget.texture,
   });
 

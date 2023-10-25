@@ -22,12 +22,13 @@ from bigballer_api.settings import settings
 
 def main():
     uvicorn.run(
-            "bigballer_api:app",
-            host=settings().host,
-            port=settings().port,
-            reload=settings().hot_reload
+        "bigballer_api:app",
+        host=settings().host,
+        port=settings().port,
+        reload=settings().hot_reload,
     )
 
 
+print(__name__)
 if __name__ == "__main__":
     main()

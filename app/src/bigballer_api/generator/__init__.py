@@ -23,14 +23,52 @@ from bigballer_api.generator._words import modifiers, names, appraisals
 from bigballer_api.generator import _blender_generator
 
 
-rarity_table = {
-    "transcendant": 1 / 391,
-    "sublime": 1 / 156,
-    "pristine": 1 / 31.3,
-    "notable": 1 / 6.26,
-    # "common": 1 / 1.25,
-}
-lowest_rarity_name = "common"
+rarity_names = ["common", "notable", "pristine", "sublime", "transcendant"]
+
+rarity_table = {}
+rarity_table[rarity_names[4]] = 1 / 391  # transcendant
+rarity_table[rarity_names[3]] = 1 / 156  # sublime
+rarity_table[rarity_names[2]] = 1 / 31.3  # pristine
+rarity_table[rarity_names[1]] = 1 / 6.26  # notable
+# rarity_table[rarity_names[0]] = 1 / 1.25  # common
+
+material_rarity_table = {}
+material_rarity_table[rarity_names[4]] = [  # transcendant
+    "diamond",
+    "gold",
+]
+material_rarity_table[rarity_names[3]] = [  # sublime
+    "sapphire",
+    "silver",
+    "chromium",
+    "platinum",
+]
+material_rarity_table[rarity_names[2]] = [  # pristine
+    "chromium",
+    "blood",
+    "glass",
+    "honey",
+]
+material_rarity_table[rarity_names[1]] = [  # notable
+    "brass",
+    "chocolate",
+    "aluminum",
+    "copper",
+    "water",
+    "ice",
+    "iron",
+]
+material_rarity_table[rarity_names[0]] = [  # common
+    "bone",
+    "brick",
+    "charcoal",
+    "concrete",
+    "egg shell",
+    "nickel",
+    "plastic",
+    "sand",
+    "rubber",
+]
 
 max_stats_roll = 0.0000013  # would be ~489,707 stat points
 
@@ -78,13 +116,14 @@ def generate(unique_key: str):
 
     # find the correct rarity name to match the roll
     next_rarity_value = max_stats_roll
-    rarity_name = lowest_rarity_name
+    rarity_name = rarity_names[0]
     for name_, req_value in rarity_table.items():
         if roll <= req_value:
             rarity_name = name_
             break
         else:
             next_rarity_value = req_value
+    rarity_index = rarity_names.index(rarity_name)  # lazy
 
     # roll can be lower than max_rarity value (1.3 out of 1 million rolls)
     stats_roll = random.uniform(next_rarity_value, roll)
@@ -97,12 +136,12 @@ def generate(unique_key: str):
     stat_names = ["VIT", "END", "STR", "DEX", "RES", "INT", "FAI"]
     random.shuffle(stat_names)
 
+    # max percentage ranges from an equal share
+    # to 75% of remaining stat points
+    max_pct_to_take = random.uniform(1 / len(stat_names), 0.75)
+
     base_stats = {}
     for stat in stat_names:
-        # max percentage ranges from an equal share
-        # to 75% of remaining stat points
-        max_pct_to_take = random.uniform(1 / len(stat_names), 0.75)
-
         # roll for actual percentage to take and calculate points
         points_to_take = round(
             random.uniform(0, max_pct_to_take) * skill_points_to_distribute
@@ -138,6 +177,41 @@ def generate(unique_key: str):
     if eye_count > SIGNED_INT32_MAX:
         eye_count = SIGNED_INT32_MAX
 
+    allowed_materials = material_rarity_table[rarity_name]
+    # 10% chance to upgrade material rarity
+    # keep re-rolling on success
+    for name in rarity_names[rarity_index:]:
+        if random.random() >= 0.1:
+            allowed_materials = material_rarity_table[name]
+        else:
+            break
+
+    body_material = random.choice(allowed_materials)
+
+    # allow lower-rarity materials for items / eyes
+    for name in rarity_names:
+        if name == rarity_name:
+            break
+        allowed_materials.extend(material_rarity_table[name])
+
+    # 10% chance of multicolored eyes
+    if random.random() <= 0.1:
+        eye_materials = random.choices(
+            allowed_materials, eye_count  # pyright: ignore [reportGeneralTypeIssues]
+        )
+    else:
+        eye_materials = [random.choice(allowed_materials)]
+
+    # 50% chance of multicolored items
+    if random.random() > 0.5:
+        item_materials = random.choices(
+            allowed_materials, item_count  # pyright: ignore [reportGeneralTypeIssues]
+        )
+    else:
+        item_materials = [random.choice(allowed_materials)]
+
+    # TODO choose colors, add system for respecting fixed material colors (like "gold")
+
     baller_filename = f"baller_{unique_key}.glb"
     export_path = Path(settings().base_baller_output_path, baller_filename)
     _blender_generator.generate_baller(
@@ -156,9 +230,7 @@ def generate(unique_key: str):
     if settings().use_s3:
         s3_key = Path(settings().s3_bucket_prefix, baller_filename).as_posix()
         s3.upload_file(  # pyright: ignore [reportUnboundVariable]
-            export_path.as_posix(),
-            settings().s3_bucket_name,
-            s3_key
+            export_path.as_posix(), settings().s3_bucket_name, s3_key
         )
 
         export_path_str = f"{settings().cdn_prefix}/{baller_filename}"

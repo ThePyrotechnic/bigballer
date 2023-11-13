@@ -20,7 +20,7 @@ import boto3
 
 from bigballer_api.settings import settings
 from bigballer_api.generator._words import modifiers, names, appraisals
-from bigballer_api.generator import _blender_generator
+from bigballer_api.generator import _blender_generator, _color_generator
 
 
 rarity_names = ["common", "notable", "pristine", "sublime", "transcendant"]
@@ -33,41 +33,223 @@ rarity_table[rarity_names[1]] = 1 / 6.26  # notable
 # rarity_table[rarity_names[0]] = 1 / 1.25  # common
 
 material_rarity_table = {}
-material_rarity_table[rarity_names[4]] = [  # transcendant
-    "diamond",
-    "gold",
+material_rarity_table[rarity_names[4]] = [
+    {
+        "name": "diamond",
+        "metalness": 0,
+        "transmission": 1,
+        "ior": 2.4168,
+        "colors": [{"hsv": (0, 0, 1), "hue_variance": 5}],
+    },
+    {
+        "name": "gold",
+        "metalness": 1,
+        "transmission": 0,
+        "ior": 1.5,
+        "colors": [
+            {"hsv": (0.11762988908347931, 0.6048728813559322, 0.944), "hue_variance": 5}
+        ],
+    },
 ]
-material_rarity_table[rarity_names[3]] = [  # sublime
-    "sapphire",
-    "silver",
-    "chromium",
-    "platinum",
+material_rarity_table[rarity_names[3]] = [
+    {
+        "name": "sapphire",
+        "metalness": 0,
+        "transmission": 1,
+        "ior": 1.7682,
+        "colors": [
+            {"hsv": (0.5819819819819819, 0.21637426900584789, 0.855), "hue_variance": 5}
+        ],
+    },
+    {
+        "name": "silver",
+        "metalness": 1,
+        "transmission": 0,
+        "ior": 1.5,
+        "colors": [
+            {
+                "hsv": (0.11249999999999986, 0.041580041580041506, 0.962),
+                "hue_variance": 5,
+            }
+        ],
+    },
+    {
+        "name": "platinum",
+        "metalness": 1,
+        "transmission": 0,
+        "ior": 1.5,
+        "colors": [
+            {"hsv": (0.0989010989010989, 0.13402061855670114, 0.679), "hue_variance": 5}
+        ],
+    },
 ]
-material_rarity_table[rarity_names[2]] = [  # pristine
-    "chromium",
-    "blood",
-    "glass",
-    "honey",
+material_rarity_table[rarity_names[2]] = [
+    {
+        "name": "chromium",
+        "metalness": 1,
+        "transmission": 0,
+        "ior": 1.5,
+        "colors": [
+            {"hsv": (0.5800000000000001, 0.03770739064856715, 0.663), "hue_variance": 5}
+        ],
+    },
+    {
+        "name": "blood",
+        "metalness": 0,
+        "transmission": 1,
+        "ior": 1.301,
+        "colors": [
+            {"hsv": (0.999479979199168, 0.9953416149068323, 0.644), "hue_variance": 5}
+        ],
+    },
+    {
+        "name": "glass",
+        "metalness": 0,
+        "transmission": 1,
+        "ior": 1.52,
+        "colors": [{"hsv": (1, 1, 1), "hue_variance": 5}],
+    },
+    {
+        "name": "honey",
+        "metalness": 0,
+        "transmission": 1,
+        "ior": 1.504,
+        "colors": [
+            {"hsv": (0.07545187053383774, 0.9542719614921781, 0.831), "hue_variance": 5}
+        ],
+    },
 ]
-material_rarity_table[rarity_names[1]] = [  # notable
-    "brass",
-    "chocolate",
-    "aluminum",
-    "copper",
-    "water",
-    "ice",
-    "iron",
+material_rarity_table[rarity_names[1]] = [
+    {
+        "name": "brass",
+        "metalness": 1,
+        "transmission": 0,
+        "ior": 1.5,
+        "colors": [
+            {"hsv": (0.13061074319352464, 0.5107102593010147, 0.887), "hue_variance": 5}
+        ],
+    },
+    {
+        "name": "chocolate",
+        "metalness": 0,
+        "transmission": 0,
+        "ior": 1.5,
+        "colors": [
+            {"hsv": (0.05065359477124184, 0.6296296296296297, 0.162), "hue_variance": 5}
+        ],
+    },
+    {
+        "name": "aluminum",
+        "metalness": 1,
+        "transmission": 0,
+        "ior": 1.5,
+        "colors": [{"hsv": (0.625, 0.00869565217391305, 0.92), "hue_variance": 5}],
+    },
+    {
+        "name": "copper",
+        "metalness": 1,
+        "transmission": 0,
+        "ior": 1.5,
+        "colors": [
+            {"hsv": (0.0857030015797788, 0.4557235421166307, 0.926), "hue_variance": 5}
+        ],
+    },
+    {
+        "name": "water",
+        "metalness": 0,
+        "transmission": 1,
+        "ior": 1.3325,
+        "colors": [{"hsv": (1, 1, 1), "hue_variance": 5}],
+    },
+    {"name": "ice", "colors": [{"hsv": (1, 1, 1), "hue_variance": 5}]},
+    {
+        "name": "iron",
+        "metalness": 1,
+        "transmission": 0,
+        "ior": 1.5,
+        "colors": [
+            {"hsv": (0.0761904761904762, 0.06591337099811681, 0.531), "hue_variance": 5}
+        ],
+    },
 ]
-material_rarity_table[rarity_names[0]] = [  # common
-    "bone",
-    "brick",
-    "charcoal",
-    "concrete",
-    "egg shell",
-    "nickel",
-    "plastic",
-    "sand",
-    "rubber",
+material_rarity_table[rarity_names[0]] = [
+    {
+        "name": "bone",
+        "metalness": 0,
+        "transmission": 0,
+        "ior": 1.5,
+        "colors": [
+            {"hsv": (0.16666666666666666, 0.1626733921815889, 0.793), "hue_variance": 5}
+        ],
+    },
+    {
+        "name": "brick",
+        "metalness": 0,
+        "transmission": 0,
+        "ior": 1.5,
+        "colors": [
+            {"hsv": (0.028192371475953566, 0.767175572519084, 0.262), "hue_variance": 5}
+        ],
+    },
+    {
+        "name": "charcoal",
+        "metalness": 0,
+        "transmission": 0,
+        "ior": 1.5,
+        "colors": [{"hsv": (0, 0, 0.02), "hue_variance": 5}],
+    },
+    {
+        "name": "concrete",
+        "metalness": 0,
+        "transmission": 0,
+        "ior": 1.5,
+        "colors": [{"hsv": (0, 0, 0.51), "hue_variance": 5}],
+    },
+    {
+        "name": "egg shell",
+        "metalness": 0,
+        "transmission": 0,
+        "ior": 1.5,
+        "colors": [
+            {
+                "hsv": (0.5555555555555555, 0.033280507131537275, 0.631),
+                "hue_variance": 5,
+            }
+        ],
+    },
+    {
+        "name": "nickel",
+        "metalness": 1,
+        "transmission": 0,
+        "ior": 1.5,
+        "colors": [
+            {
+                "hsv": (0.10648148148148141, 0.16640986132511554, 0.649),
+                "hue_variance": 5,
+            }
+        ],
+    },
+    {
+        "name": "plastic",
+        "metalness": 0,
+        "transmission": 1,
+        "ior": 1.531,
+        "colors": [{"hsv": (1, 1, 1), "hue_variance": 360}],
+    },
+    {
+        "name": "sand",
+        "metalness": 0,
+        "transmission": 0,
+        "ior": 1.5,
+        "colors": [{"hsv": (0.12360446570972887, 0.475, 0.44), "hue_variance": 5}],
+    },
+    {
+        "name": "rubber",
+        "metalness": 0,
+        "transmission": 0,
+        "ior": 1.5,
+        "colors": [{"hsv": (0, 0, 0.023), "hue_variance": 360}],
+    },
 ]
 
 max_stats_roll = 0.0000013  # would be ~489,707 stat points
@@ -88,6 +270,16 @@ SIGNED_INT32_MIN = -(2**31)
 
 if settings().use_s3:
     s3 = boto3.Session(profile_name=settings().aws_profile).client("s3")
+
+
+def resolve_color(c):
+    return _color_generator.ryb_shift(
+        *c["hsv"],
+        random.randrange(
+            -c["hue_variance"],
+            c["hue_variance"],
+        ),
+    )
 
 
 def generate(unique_key: str):
@@ -181,7 +373,7 @@ def generate(unique_key: str):
     # 10% chance to upgrade material rarity
     # keep re-rolling on success
     for name in rarity_names[rarity_index:]:
-        if random.random() >= 0.1:
+        if random.random() <= 0.1:
             allowed_materials = material_rarity_table[name]
         else:
             break
@@ -197,7 +389,7 @@ def generate(unique_key: str):
     # 10% chance of multicolored eyes
     if random.random() <= 0.1:
         eye_materials = random.choices(
-            allowed_materials, eye_count  # pyright: ignore [reportGeneralTypeIssues]
+            allowed_materials, k=eye_count  # pyright: ignore [reportGeneralTypeIssues]
         )
     else:
         eye_materials = [random.choice(allowed_materials)]
@@ -205,12 +397,67 @@ def generate(unique_key: str):
     # 50% chance of multicolored items
     if random.random() > 0.5:
         item_materials = random.choices(
-            allowed_materials, item_count  # pyright: ignore [reportGeneralTypeIssues]
+            allowed_materials, k=item_count  # pyright: ignore [reportGeneralTypeIssues]
         )
     else:
         item_materials = [random.choice(allowed_materials)]
 
-    # TODO choose colors, add system for respecting fixed material colors (like "gold")
+    # determine how many colors are required
+    material_count = len(eye_materials) + len(item_materials) + 1
+
+    # Weighted probability for different color schemes
+    # CURRENTLY UNUSED
+    style_choices = []
+    weights = []
+    if material_count == 1:
+        style_choices.append("monochrome")
+        weights.append(100)
+    elif material_count == 2:
+        style_choices.extend(["monochrome", "complementary", "random"])
+        weights.extend([49, 49, 2])
+    elif material_count == 3:
+        style_choices.extend(
+            ["monochrome", "complementary", "adjacent", "triad", "random"]
+        )
+        weights.extend([14, 14, 35, 35, 2])
+    elif material_count == 4:
+        style_choices.extend(
+            ["monochrome", "complementary", "adjacent", "triad", "tetrad", "random"]
+        )
+        weights.extend([4, 4, 10, 10, 70, 2])
+    chosen_style = random.choices(style_choices, weights=weights, k=1)
+
+    resolved_body_material = {
+        "name": body_material["name"],
+        "metalness": body_material["metalness"],
+        "transmission": body_material["transmission"],
+        "ior": body_material["ior"],
+        "color": resolve_color(random.choice(body_material["colors"])),
+    }
+
+    resolved_eye_materials = []
+    for mat in eye_materials:
+        resolved_eye_materials.append(
+            {
+                "name": mat["name"],
+                "metalness": mat["metalness"],
+                "transmission": mat["transmission"],
+                "ior": mat["ior"],
+                "color": resolve_color(random.choice(mat["colors"])),
+            }
+        )
+
+    resolved_item_materials = []
+    for mat in item_materials:
+        resolved_item_materials.append(
+            {
+                "name": mat["name"],
+                "metalness": mat["metalness"],
+                "transmission": mat["transmission"],
+                "ior": mat["ior"],
+                "color": resolve_color(random.choice(mat["colors"])),
+            }
+        )
 
     baller_filename = f"baller_{unique_key}.glb"
     export_path = Path(settings().base_baller_output_path, baller_filename)
@@ -248,5 +495,8 @@ def generate(unique_key: str):
         "height_roll": height_roll,
         "height": height_cm,
         "weight": weight_grams,
+        "body_material": resolved_body_material,
+        "eye_materials": resolved_eye_materials,
+        "item_materials": resolved_item_materials,
         "export_path": export_path_str,
     }

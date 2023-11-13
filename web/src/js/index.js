@@ -66,7 +66,7 @@ const initThree = async () => {
   renderer = new THREE.WebGLRenderer();
   renderer.setClearColor(0xFFFFFF);
   renderer.setPixelRatio(window.devicePixelRatio);
-  renderer.setSize(window.innerWidth / 4, window.innerHeight / 4);
+  renderer.setSize(window.innerWidth / 2, window.innerHeight / 2);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1;
   document.body.appendChild(renderer.domElement);
@@ -128,21 +128,41 @@ const viewGltf = (ballerData) => {
       object.position.y += (object.position.y - center.y);
       object.position.z += (object.position.z - center.z);
 
+      let eyeIndex = 0;
+      let itemIndex = 0;
       object.traverse((node) => {
         if (node.isMesh) {
-          let metalness = ballerData["body_material"]["metalness"];
-          let roughness = metalness === 1 ? 0 : 1;
-          let transmission = ballerData["body_material"]["transmission"];
-          let opacity = transmission > 0 ? 0 : 1;
-          let ior = ballerData["body_material"]["ior"];
+          let curMaterial;
+          if (node.name.startsWith("Eyes")) {
+            let a = eyeIndex++ % ballerData["eye_materials"].length;
+            curMaterial = ballerData["eye_materials"][a];
+          }
+          else if (node.name.startsWith("Items")) {
+            let a = itemIndex++ % ballerData["item_materials"].length;
+            curMaterial = ballerData["item_materials"][a];
+          }
+          else if (node.name.startsWith("Headwear")) {
+            curMaterial = ballerData["headwear_material"]
+          }
+          else { // if (node.name == "Plain") { // Body node
+            curMaterial = ballerData["body_material"];
+          }
+
+          let color = hsvToRGB(...curMaterial["color"]);
+          let metalness = curMaterial["metalness"];
+          let roughness = curMaterial["roughness"];
+          let transmission = curMaterial["transmission"];
+          let opacity = curMaterial["opacity"];
+          let thickness = curMaterial["thickness"];
+          let ior = curMaterial["ior"];
 
           node.material = new THREE.MeshPhysicalMaterial({
-            color: new THREE.Color(...hsvToRGB(...ballerData["body_material"]["color"])),
+            color: new THREE.Color(...color),
             metalness: metalness,
             roughness: roughness,
             transmission: transmission,
             opacity: opacity,
-            // thickness: 0.2,
+            thickness: thickness,
             ior: ior,
             envMap: generatedCubeRenderTarget.texture,
           });
@@ -175,19 +195,29 @@ const onWindowResize = () => {
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
 
-  renderer.setSize(width / 4, height / 4);
+  renderer.setSize(width / 2, height / 2);
 };
 
 const formatBaller = (ballerId, ballerData) => {
   const ballerDiv = document.createElement("div");
 
   const header = document.createElement("h3");
-  const headerText = `${ballerData["modifier"]} ${ballerData["name"]} of ${ballerData["appraisal"]} quality`;
+  const headerText = ballerData["rarity_name"];
   header.appendChild(document.createTextNode(headerText));
   ballerDiv.appendChild(header);
 
   const subHeader = document.createElement("span");
-  subHeader.appendChild(document.createTextNode(ballerId));
+  const height = (ballerData["height"] * 0.0328084).toFixed(3);
+  const weight = (ballerData["weight"] * 0.002204623).toFixed(3);
+  const roll = ballerData["roll"].toFixed(4);
+  const materials = [ballerData["body_material"]["name"]];
+  for (const mat of ballerData["eye_materials"])
+    materials.push(mat["name"]);
+  for (const mat of ballerData["item_materials"])
+    materials.push(mat["name"]);
+  if (ballerData["headwear_material"])
+    materials.push(ballerData["headwear_material"]["name"]);
+  subHeader.appendChild(document.createTextNode(`(${roll}) ${height} feet, ${weight} lbs. ${materials}`));
   ballerDiv.appendChild(subHeader)
 
   const btnPreview = document.createElement("button");

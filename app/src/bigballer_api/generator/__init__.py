@@ -38,6 +38,8 @@ material_rarity_table[rarity_names[4]] = [
         "name": "diamond",
         "metalness": 0,
         "transmission": 1,
+        "thickness": 0.1,
+        "roughness": 0,
         "ior": 2.4168,
         "colors": [{"hsv": (0, 0, 1), "hue_variance": 5}],
     },
@@ -56,6 +58,8 @@ material_rarity_table[rarity_names[3]] = [
         "name": "sapphire",
         "metalness": 0,
         "transmission": 1,
+        "thickness": 0.1,
+        "roughness": 0,
         "ior": 1.7682,
         "colors": [
             {"hsv": (0.5819819819819819, 0.21637426900584789, 0.855), "hue_variance": 5}
@@ -97,6 +101,8 @@ material_rarity_table[rarity_names[2]] = [
         "name": "blood",
         "metalness": 0,
         "transmission": 1,
+        "thickness": 0.2,
+        "roughness": 0.1,
         "ior": 1.301,
         "colors": [
             {"hsv": (0.999479979199168, 0.9953416149068323, 0.644), "hue_variance": 5}
@@ -106,13 +112,16 @@ material_rarity_table[rarity_names[2]] = [
         "name": "glass",
         "metalness": 0,
         "transmission": 1,
+        "thickness": 0,
         "ior": 1.52,
-        "colors": [{"hsv": (1, 1, 1), "hue_variance": 5}],
+        "colors": [{"hsv": (0, 0, 1), "hue_variance": 5}],
     },
     {
         "name": "honey",
         "metalness": 0,
         "transmission": 1,
+        "thickness": 0.3,
+        "roughness": 0.1,
         "ior": 1.504,
         "colors": [
             {"hsv": (0.07545187053383774, 0.9542719614921781, 0.831), "hue_variance": 5}
@@ -158,10 +167,20 @@ material_rarity_table[rarity_names[1]] = [
         "name": "water",
         "metalness": 0,
         "transmission": 1,
+        "thickness": 0.01,
+        "roughness": 0,
         "ior": 1.3325,
-        "colors": [{"hsv": (1, 1, 1), "hue_variance": 5}],
+        "colors": [{"hsv": (0.59444, 0.07843, 1), "hue_variance": 5}],
     },
-    {"name": "ice", "colors": [{"hsv": (1, 1, 1), "hue_variance": 5}]},
+    {
+        "name": "ice",
+        "metalness": 0,
+        "transmission": 1,
+        "thickness": 0.05,
+        "roughness": 0.1,
+        "ior": 1.3098,
+        "colors": [{"hsv": (0, 0, 1), "hue_variance": 5}],
+    },
     {
         "name": "iron",
         "metalness": 1,
@@ -169,6 +188,18 @@ material_rarity_table[rarity_names[1]] = [
         "ior": 1.5,
         "colors": [
             {"hsv": (0.0761904761904762, 0.06591337099811681, 0.531), "hue_variance": 5}
+        ],
+    },
+    {
+        "name": "nickel",
+        "metalness": 1,
+        "transmission": 0,
+        "ior": 1.5,
+        "colors": [
+            {
+                "hsv": (0.10648148148148141, 0.16640986132511554, 0.649),
+                "hue_variance": 5,
+            }
         ],
     },
 ]
@@ -218,23 +249,12 @@ material_rarity_table[rarity_names[0]] = [
         ],
     },
     {
-        "name": "nickel",
-        "metalness": 1,
-        "transmission": 0,
-        "ior": 1.5,
-        "colors": [
-            {
-                "hsv": (0.10648148148148141, 0.16640986132511554, 0.649),
-                "hue_variance": 5,
-            }
-        ],
-    },
-    {
         "name": "plastic",
         "metalness": 0,
+        "roughness": 0.8,
         "transmission": 1,
         "ior": 1.531,
-        "colors": [{"hsv": (1, 1, 1), "hue_variance": 360}],
+        "colors": [{"hsv": (0, 1, 1), "hue_variance": 360}],
     },
     {
         "name": "sand",
@@ -282,9 +302,59 @@ def resolve_color(c):
     )
 
 
+def resolve_basic_color_material(c):
+    if random.random() <= 0.01:
+        metalness = random.uniform(0.3, 1)
+    else:
+        metalness = 0
+
+    if random.random() <= 0.01:
+        transmission = random.uniform(0.2, 0.9)
+    else:
+        transmission = 0
+
+    # 1% chance for metallic or transmissive material
+    # but only allow one or the other
+    # roll both to avoid metal appearing more often than transmissive
+    if transmission > 0 and metalness > 0:
+        if random.random() > 0.5:
+            transmission = 0
+        else:
+            metalness = 0
+
+    return {
+        "name": "custom",
+        "metalness": metalness,
+        "roughness": 0 if metalness > 0 else 1,
+        "transmission": transmission,
+        "opacity": 0 if transmission > 0 else 1,
+        "thickness": 0,
+        "ior": random.uniform(1.3, 2),
+        "color": c,
+    }
+
+
+def resolve_material(m):
+    resolved_mat = {
+        "name": m["name"],
+        "metalness": m["metalness"],
+        "transmission": m["transmission"],
+        "opacity": 0 if m["transmission"] > 0 else 1,
+        "thickness": m.get("thickness", 0),
+        "ior": m["ior"],
+        "color": resolve_color(random.choice(m["colors"])),
+    }
+    try:
+        resolved_mat["roughness"] = m["roughness"]
+    except KeyError:
+        resolved_mat["roughness"] = 0 if m["metalness"] == 1 else 1
+
+    return resolved_mat
+
+
 def generate(unique_key: str):
     modifier = random.choice(modifiers)
-    name = random.choice(names)
+    baller_name = random.choice(names)
     appraisal = random.choice(appraisals)
 
     roll = random.random()  # lower = better
@@ -350,14 +420,17 @@ def generate(unique_key: str):
         )
 
     item_count = 0
-    while random.random() > 0.5:
+    item_rarity = 0.1
+    # 10% chance of item, multiple item chance / 2 each time
+    while random.random() <= item_rarity:
+        item_rarity /= 2
         item_count += 1
 
     if item_count > SIGNED_INT32_MAX:
         item_count = SIGNED_INT32_MAX
 
     eye_count = 2
-    while random.random() > 0.5:
+    while random.random() <= 0.3:
         eye_count += 1
 
     # 1/10,000 chance for 0 or 1 eyes
@@ -369,95 +442,199 @@ def generate(unique_key: str):
     if eye_count > SIGNED_INT32_MAX:
         eye_count = SIGNED_INT32_MAX
 
-    allowed_materials = material_rarity_table[rarity_name]
-    # 10% chance to upgrade material rarity
-    # keep re-rolling on success
-    for name in rarity_names[rarity_index:]:
-        if random.random() <= 0.1:
-            allowed_materials = material_rarity_table[name]
+    has_headwear = random.choice([True, False])
+
+    if rarity_index < 3:  # Under sublime
+        # 70% chance to get a generated color scheme
+        use_color_scheme = random.random() <= 0.7
+    else:
+        use_color_scheme = False
+
+    # 10% chance of multicolored eyes, 50% for items
+    multicolored_eyes = random.random() <= 0.1
+    multicolored_items = random.random() > 0.5
+
+    if use_color_scheme:
+        # determine how many colors are required
+        material_count = 1
+        if eye_count > 0:
+            material_count += 1
+        if item_count > 0:
+            material_count += 1
+        if has_headwear:
+            material_count += 1
+
+        # Weighted probability for different color schemes
+        if material_count == 1:
+            style_choices = ["monochrome"]
+            weights = [100]
+        elif material_count == 2:
+            style_choices = ["monochrome", "complementary", "random"]
+            weights = [49, 49, 2]
+        elif material_count == 3:
+            style_choices = [
+                "monochrome",
+                "complementary",
+                "adjacent",
+                "triad",
+                "random",
+            ]
+            weights = [14, 14, 35, 35, 2]
+        else:  # >= 4
+            style_choices = [
+                "monochrome",
+                "complementary",
+                "adjacent",
+                "triad",
+                "tetrad",
+                "random",
+            ]
+            weights = [4, 4, 10, 10, 70, 2]
+        chosen_style = random.choices(style_choices, weights=weights, k=1)[0]
+
+        if chosen_style == "random":
+            resolved_body_material = resolve_basic_color_material(
+                _color_generator.random_color()
+            )
+
+            if has_headwear:
+                resolved_headwear_material = resolve_basic_color_material(
+                    _color_generator.random_color()
+                )
+            else:
+                resolved_headwear_material = None
+
+            if multicolored_eyes:
+                resolved_eye_materials = [
+                    resolve_basic_color_material(_color_generator.random_color())
+                    for _ in range(eye_count)
+                ]
+            else:
+                resolved_eye_materials = [
+                    resolve_basic_color_material(_color_generator.random_color())
+                ]
+
+            if multicolored_items:
+                resolved_item_materials = [
+                    resolve_basic_color_material(_color_generator.random_color())
+                    for _ in range(item_count)
+                ]
+            else:
+                resolved_item_materials = [
+                    resolve_basic_color_material(_color_generator.random_color())
+                ]
         else:
-            break
+            base_color = _color_generator.random_color()
+            palette = [base_color]
+            if chosen_style == "tetrad":
+                palette.extend(_color_generator.generate_tetrad(*base_color))
+            elif chosen_style == "triad":
+                palette.extend(_color_generator.generate_triad(*base_color))
+            elif chosen_style == "adjacent":
+                palette.extend(_color_generator.generate_adjacent(*base_color))
+            elif chosen_style == "complementary":
+                palette.extend(
+                    _color_generator.generate_adjacent(*base_color, degrees=180)
+                )
 
-    body_material = random.choice(allowed_materials)
+            resolved_body_material = resolve_basic_color_material(palette[0])
+            palette_index = 1 % len(palette)
 
-    # allow lower-rarity materials for items / eyes
-    for name in rarity_names:
-        if name == rarity_name:
-            break
-        allowed_materials.extend(material_rarity_table[name])
+            if eye_count > 0:
+                eye_color = palette[palette_index]
+                palette_index = (palette_index + 1) % len(palette)
+                eye_shades = _color_generator.generate_shades(
+                    *eye_color, shade_pairs=eye_count // 2
+                )
+                # len(eye_shades) will always be even
+                # eye_shades.insert(len(eye_shades) // 2, eye_color)
 
-    # 10% chance of multicolored eyes
-    if random.random() <= 0.1:
-        eye_materials = random.choices(
-            allowed_materials, k=eye_count  # pyright: ignore [reportGeneralTypeIssues]
-        )
+                resolved_eye_materials = [
+                    resolve_basic_color_material(eye_shades[a % len(eye_shades)])
+                    for a in range(eye_count)
+                ]
+            else:
+                resolved_eye_materials = []
+
+            if item_count > 0:
+                item_color = palette[palette_index]
+                palette_index = (palette_index + 1) % len(palette)
+                item_shades = _color_generator.generate_shades(
+                    *item_color, shade_pairs=eye_count // 2
+                )
+                # len(item_shades) will always be even
+                # item_shades.insert(len(item_shades) // 2, item_color)
+
+                resolved_item_materials = [
+                    resolve_basic_color_material(item_shades[a % len(item_shades)])
+                    for a in range(item_count)
+                ]
+            else:
+                resolved_item_materials = []
+
+            if has_headwear:
+                resolved_headwear_material = resolve_basic_color_material(
+                    random.choice(
+                        _color_generator.generate_shades(*palette[palette_index])
+                    )
+                )
+            else:
+                resolved_headwear_material = []
+
     else:
-        eye_materials = [random.choice(allowed_materials)]
+        allowed_materials = material_rarity_table[rarity_name]
+        # 10% chance to upgrade material rarity
+        # keep re-rolling on success
+        for name in rarity_names[rarity_index:]:
+            if random.random() <= 0.1:
+                allowed_materials = material_rarity_table[name]
+            else:
+                break
 
-    # 50% chance of multicolored items
-    if random.random() > 0.5:
-        item_materials = random.choices(
-            allowed_materials, k=item_count  # pyright: ignore [reportGeneralTypeIssues]
-        )
-    else:
-        item_materials = [random.choice(allowed_materials)]
+        body_material = random.choice(allowed_materials)
+        resolved_body_material = resolve_material(body_material)
 
-    # determine how many colors are required
-    material_count = len(eye_materials) + len(item_materials) + 1
+        if has_headwear:
+            headwear_material = random.choice(allowed_materials)
+            resolved_headwear_material = resolve_material(headwear_material)
+        else:
+            resolved_headwear_material = None
 
-    # Weighted probability for different color schemes
-    # CURRENTLY UNUSED
-    style_choices = []
-    weights = []
-    if material_count == 1:
-        style_choices.append("monochrome")
-        weights.append(100)
-    elif material_count == 2:
-        style_choices.extend(["monochrome", "complementary", "random"])
-        weights.extend([49, 49, 2])
-    elif material_count == 3:
-        style_choices.extend(
-            ["monochrome", "complementary", "adjacent", "triad", "random"]
-        )
-        weights.extend([14, 14, 35, 35, 2])
-    elif material_count == 4:
-        style_choices.extend(
-            ["monochrome", "complementary", "adjacent", "triad", "tetrad", "random"]
-        )
-        weights.extend([4, 4, 10, 10, 70, 2])
-    chosen_style = random.choices(style_choices, weights=weights, k=1)
+        # allow lower-rarity materials for items / eyes
+        for name in rarity_names:
+            if name == rarity_name:
+                break
+            allowed_materials.extend(material_rarity_table[name])
 
-    resolved_body_material = {
-        "name": body_material["name"],
-        "metalness": body_material["metalness"],
-        "transmission": body_material["transmission"],
-        "ior": body_material["ior"],
-        "color": resolve_color(random.choice(body_material["colors"])),
-    }
+        if eye_count > 0:
+            if multicolored_eyes:
+                eye_materials = random.choices(
+                    allowed_materials,
+                    k=eye_count,  # pyright: ignore [reportGeneralTypeIssues]
+                )
+            else:
+                eye_materials = [random.choice(allowed_materials)]
+        else:
+            eye_materials = []
 
-    resolved_eye_materials = []
-    for mat in eye_materials:
-        resolved_eye_materials.append(
-            {
-                "name": mat["name"],
-                "metalness": mat["metalness"],
-                "transmission": mat["transmission"],
-                "ior": mat["ior"],
-                "color": resolve_color(random.choice(mat["colors"])),
-            }
-        )
+        resolved_eye_materials = []
+        for mat in eye_materials:
+            resolved_eye_materials.append(resolve_material(mat))
 
-    resolved_item_materials = []
-    for mat in item_materials:
-        resolved_item_materials.append(
-            {
-                "name": mat["name"],
-                "metalness": mat["metalness"],
-                "transmission": mat["transmission"],
-                "ior": mat["ior"],
-                "color": resolve_color(random.choice(mat["colors"])),
-            }
-        )
+        if item_count > 0:
+            if multicolored_items:
+                item_materials = random.choices(
+                    allowed_materials,
+                    k=item_count,  # pyright: ignore [reportGeneralTypeIssues]
+                )
+            else:
+                item_materials = [random.choice(allowed_materials)]
+        else:
+            item_materials = []
+
+        resolved_item_materials = []
+        for mat in item_materials:
+            resolved_item_materials.append(resolve_material(mat))
 
     baller_filename = f"baller_{unique_key}.glb"
     export_path = Path(settings().base_baller_output_path, baller_filename)
@@ -469,7 +646,7 @@ def generate(unique_key: str):
         height=height_cm / 100,
         weight=weight_grams,
         body_noise=random.choice([True, False]),
-        headwear=random.choice([True, False]),
+        headwear=has_headwear,
         item_count=item_count,
         eye_count=eye_count,
     )
@@ -486,7 +663,7 @@ def generate(unique_key: str):
 
     return {
         "modifier": modifier,
-        "name": name,
+        "name": baller_name,
         "appraisal": appraisal,
         "roll": roll,
         "rarity_name": rarity_name,
@@ -496,6 +673,7 @@ def generate(unique_key: str):
         "height": height_cm,
         "weight": weight_grams,
         "body_material": resolved_body_material,
+        "headwear_material": resolved_headwear_material,
         "eye_materials": resolved_eye_materials,
         "item_materials": resolved_item_materials,
         "export_path": export_path_str,

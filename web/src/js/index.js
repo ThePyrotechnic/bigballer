@@ -20,7 +20,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 const accessToken = document.cookie.split("; ")
   .find((row) => row.startsWith("access_token="))?.split("=")[1];
 
-let basicMat;
+let mat;
 
 const loader = new GLTFLoader();
 let viewportInitialized = false;
@@ -28,6 +28,35 @@ let scene;
 let camera;
 let controls;
 let renderer;
+let generatedCubeRenderTarget;
+
+// adapted from:
+// https://github.com/python/cpython/blob/3.11/Lib/colorsys.py
+const hsvToRGB = (h, s, v) => {
+  if (s == 0.0)
+    return [v, v, v];
+
+  let i = Math.floor(h * 6.0);
+  const f = (h * 6.0) - i;
+  const p = v * (1.0 - s);
+  const q = v * (1.0 - s * f);
+  const t = v * (1.0 - s * (1.0 - f));
+
+  i = i % 6;
+  if (i == 0)
+    return [v, t, p];
+  if (i == 1)
+    return [q, v, p];
+  if (i == 2)
+    return [p, v, t];
+  if (i == 3)
+    return [p, q, v];
+  if (i == 4)
+    return [t, p, v];
+  if (i == 5)
+    return [v, p, q];
+  // Cannot get here
+}
 
 const initThree = async () => {
   scene = new THREE.Scene();
@@ -45,38 +74,9 @@ const initThree = async () => {
   const pmremGenerator = new THREE.PMREMGenerator(renderer);
   pmremGenerator.compileCubemapShader();
   const envScene = new DebugEnvironment();
-  const generatedCubeRenderTarget = pmremGenerator.fromScene(envScene);
+  generatedCubeRenderTarget = pmremGenerator.fromScene(envScene);
 
   scene.background = generatedCubeRenderTarget.texture;
-
-  metalMat = new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color(0.644, 0.003, 0.005),
-    metalness: 1,
-    roughness: 0,
-    transmission: 0,
-    opacity: 1,
-    // thickness: 0.2,
-    // ior: 1.301,
-    envMap: generatedCubeRenderTarget.texture,
-  });
-
-  // basicMat = new THREE.MeshPhysicalMaterial({
-  //   color: new THREE.Color(1, 1, 1),
-  //   metalness: 0,
-  //   roughness: 0,
-  //   transmission: 1,
-  //   opacity: 0,
-  //   thickness: 1,
-  //   ior: 2.333,
-  //   envMap: generatedCubeRenderTarget.texture,
-  // });
-
-  // basicMat = new THREE.MeshPhysicalMaterial({
-  //   color: new THREE.Color(0.793, 0.793, 0.664),
-  //   metalness: 0,
-  //   ior: 1.5,
-  //   envMap: generatedCubeRenderTarget.texture,
-  // });
 
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enablePan = false;
@@ -102,9 +102,9 @@ const initThree = async () => {
 // Thank you,
 // https://github.com/donmccurdy/three-gltf-viewer
 let currentObject = null;
-const viewGltf = (url) => {
+const viewGltf = (ballerData) => {
   loader.load(
-    url,
+    ballerData["export_path"],
     (gltf) => {
       if (currentObject !== null) {
         scene.remove(currentObject);
@@ -130,7 +130,22 @@ const viewGltf = (url) => {
 
       object.traverse((node) => {
         if (node.isMesh) {
-          node.material = basicMat;
+          let metalness = ballerData["body_material"]["metalness"];
+          let roughness = metalness === 1 ? 0 : 1;
+          let transmission = ballerData["body_material"]["transmission"];
+          let opacity = transmission > 0 ? 0 : 1;
+          let ior = ballerData["body_material"]["ior"];
+
+          node.material = new THREE.MeshPhysicalMaterial({
+            color: new THREE.Color(...hsvToRGB(...ballerData["body_material"]["color"])),
+            metalness: metalness,
+            roughness: roughness,
+            transmission: transmission,
+            opacity: opacity,
+            // thickness: 0.2,
+            ior: ior,
+            envMap: generatedCubeRenderTarget.texture,
+          });
         }
       });
 
@@ -177,7 +192,7 @@ const formatBaller = (ballerId, ballerData) => {
 
   const btnPreview = document.createElement("button");
   btnPreview.appendChild(document.createTextNode("View Baller"));
-  btnPreview.addEventListener("click", () => { viewGltf(ballerData["export_path"]) });
+  btnPreview.addEventListener("click", () => { viewGltf(ballerData) });
   ballerDiv.appendChild(btnPreview);
 
   return ballerDiv;
